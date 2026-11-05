@@ -1,0 +1,14 @@
+product,units_sold,unit_price,region
+Laptop,5,1200.0,Berlin
+Mouse,20,25.0,Paris
+Keyboard,12,75.0,Berlin
+Monitor,8,300.0,London
+Laptop,6,1200.0,Paris
+Mouse,18,,London
+Keyboard,15,75.0,Berlin
+Monitor,10,300.0,Paris
+Laptop,unknown,1200.0,London
+Mouse,25,25.0,Berlin
+Keyboard,11,75.0,Atlantis
+Monitor,9,300.0,London
+Laptop,5,1200.0,Berlin
