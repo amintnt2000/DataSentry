@@ -1,7 +1,10 @@
 import pandas as pd
+from  data_analyzer import check_duplicates
 
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
-df_test = df.drop(columns="region")
+df_test = df.drop(columns=["region", "unit_price"])
+
+
 required_columns = ["product", "units_sold", "unit_price", "region"]
 required_columns_type = {
     "units_sold": "numeric",
@@ -41,18 +44,46 @@ def check_value_range(df, column, main_value):
                 unexpected += 1
     return unexpected
 
+def calculate_error_percentage(error_count, total_rows):
+    if total_rows > 0:
+        return (error_count / total_rows) * 100
+    else:
+        return None
+
 def generate_quality_report(df):
     report = {
     "missing_columns": [],
     "incorrect_types": [],
     "invalid_unit_price": 0,
-    "invalid_units_sold": 0
+    "invalid_units_sold": 0,
+    "unit_price_error_percentage":0,
+    "units_sold_error_percentage":0,
+    "missing_values_percentage":0,
+    "duplicate_percentage":0,
+    "missing_values_count":0,
+    "duplicate_count":0
     }
     report["missing_columns"] = check_required_columns(df, required_columns)
     report["incorrect_types"] = check_column_type(df, required_columns_type)
-    report["invalid_unit_price"] = check_value_range(df, "unit_price", 0)
-    report["invalid_units_sold"] = check_value_range(df, "units_sold", 0)
+    if "unit_price" in df.columns:
+        report["invalid_unit_price"] = check_value_range(df, "unit_price", 0)
+    if "units_sold" in df.columns:
+        report["invalid_units_sold"] = check_value_range(df, "units_sold", 0)
+    if "unit_price" in df.columns:
+        report["unit_price_error_percentage"] = calculate_error_percentage(report["invalid_unit_price"], len(df))
+    if "units_sold" in df.columns:
+        report["units_sold_error_percentage"] = calculate_error_percentage(report["invalid_units_sold"], len(df))
+    report["missing_values_percentage"] = calculate_error_percentage(df.isnull().sum().sum(), df.size)
+    duplicate, pre_duplicate, _ = check_duplicates(df)
+    report["duplicate_percentage"] = pre_duplicate
+    report["missing_values_count"] = df.isnull().sum().sum()
+    report["duplicate_count"] = duplicate
     return report
 
+
+
 print(generate_quality_report(df))
+
 print(generate_quality_report(df_test))
+
+print(generate_quality_report(df.iloc[0:0]))
