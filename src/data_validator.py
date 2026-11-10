@@ -1,16 +1,10 @@
 import pandas as pd
-from  data_analyzer import check_duplicates
+import json
+from .data_analyzer import check_duplicates
+from .data_cleaner import check_invalid_categories
 
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
 df_test = df.drop(columns=["region", "unit_price"])
-
-
-required_columns = ["product", "units_sold", "unit_price", "region"]
-required_columns_type = {
-    "units_sold": "numeric",
-    "unit_price": "numeric",
-    "product": "string"
-}
 
 
 def check_required_columns(df, required_columns:list):
@@ -36,12 +30,21 @@ def check_column_type(df, required_columns_type:dict):
                     incorrect.append([column, expected_type])
     return incorrect
 
-def check_value_range(df, column, main_value):
+def count_invalid_numeric_values(df, column):
+    counter = 0
+    for number in df[column]:
+        if pd.to_numeric(number, errors="coerce") is False:
+            counter += 1
+    return counter
+
+def check_value_range(df, column, value_range):
     unexpected = 0
     for value in df[column]:
         if isinstance(value, (int, float)):
-            if value < main_value:
-                unexpected += 1
+             if value < value_range["min"] :
+                 unexpected += 1
+             if value > value_range["max"] :
+                 unexpected += 1
     return unexpected
 
 def calculate_error_percentage(error_count, total_rows):
@@ -50,7 +53,12 @@ def calculate_error_percentage(error_count, total_rows):
     else:
         return None
 
-def generate_quality_report(df):
+def load_rules(path):
+    with open(path, "r", encoding="utf-8") as f:
+        rules = json.load(f)
+    return rules
+
+def generate_quality_report(df, columns:list, rules: dict):
     report = {
     "missing_columns": [],
     "incorrect_types": [],
@@ -61,14 +69,16 @@ def generate_quality_report(df):
     "missing_values_percentage":0,
     "duplicate_percentage":0,
     "missing_values_count":0,
-    "duplicate_count":0
+    "duplicate_count":0,
+    "allowed_categories":{},
+    "wrong_categories":{}
     }
-    report["missing_columns"] = check_required_columns(df, required_columns)
-    report["incorrect_types"] = check_column_type(df, required_columns_type)
+    report["missing_columns"] = check_required_columns(df, rules["required_columns"])
+    report["incorrect_types"] = check_column_type(df, rules["required_columns_type"])
     if "unit_price" in df.columns:
-        report["invalid_unit_price"] = check_value_range(df, "unit_price", 0)
+        report["invalid_unit_price"] = check_value_range(df, "unit_price", rules["value_ranges"]["unit_price"])
     if "units_sold" in df.columns:
-        report["invalid_units_sold"] = check_value_range(df, "units_sold", 0)
+        report["invalid_units_sold"] = check_value_range(df, "units_sold", rules["value_ranges"]["units_sold"])
     if "unit_price" in df.columns:
         report["unit_price_error_percentage"] = calculate_error_percentage(report["invalid_unit_price"], len(df))
     if "units_sold" in df.columns:
@@ -78,12 +88,11 @@ def generate_quality_report(df):
     report["duplicate_percentage"] = pre_duplicate
     report["missing_values_count"] = df.isnull().sum().sum()
     report["duplicate_count"] = duplicate
+    for column in columns:
+        if column in df.columns:
+            if column in rules["allowed_categories"]:
+                report["allowed_categories"][column] = rules["allowed_categories"][column]
+                report["wrong_categories"][column] = check_invalid_categories(df, column, rules["allowed_categories"][column])
     return report
 
 
-
-print(generate_quality_report(df))
-
-print(generate_quality_report(df_test))
-
-print(generate_quality_report(df.iloc[0:0]))

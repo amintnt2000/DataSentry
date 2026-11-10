@@ -1,0 +1,28 @@
+{
+    "allowed_categories": {
+        "region": ["Berlin", "Paris", "London"],
+        "product": ["Laptop", "Mouse", "Keyboard", "Monitor"]
+    },
+    "value_ranges": {
+        "unit_price": {
+            "min": 0,
+            "max": 1000
+        },
+        "units_sold": {
+            "min": 0,
+            "max": 1000
+        }
+    },
+    "required_columns": [
+    "product",
+    "units_sold",
+    "unit_price",
+    "region"
+    ],
+    "required_columns_type": {
+        "units_sold": "numeric",
+        "unit_price": "numeric",
+        "product": "string"
+    }
+
+}
