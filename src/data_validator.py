@@ -33,7 +33,8 @@ def check_column_type(df, required_columns_type:dict):
 def count_invalid_numeric_values(df, column):
     counter = 0
     for number in df[column]:
-        if pd.to_numeric(number, errors="coerce") is False:
+        num = pd.to_numeric(number, errors="coerce")
+        if pd.isna(num) is True and pd.isna(number) is not True:
             counter += 1
     return counter
 
@@ -71,7 +72,9 @@ def generate_quality_report(df, columns:list, rules: dict):
     "missing_values_count":0,
     "duplicate_count":0,
     "allowed_categories":{},
-    "wrong_categories":{}
+    "wrong_categories":{},
+    "invalid_numeric_count": {},
+    "invalid_numeric_percentage": {}
     }
     report["missing_columns"] = check_required_columns(df, rules["required_columns"])
     report["incorrect_types"] = check_column_type(df, rules["required_columns_type"])
@@ -93,6 +96,12 @@ def generate_quality_report(df, columns:list, rules: dict):
             if column in rules["allowed_categories"]:
                 report["allowed_categories"][column] = rules["allowed_categories"][column]
                 report["wrong_categories"][column] = check_invalid_categories(df, column, rules["allowed_categories"][column])
+    for column, type in  rules["required_columns_type"].items():
+        if type == "numeric":
+            if column in df.columns:
+                report["invalid_numeric_count"][column] = count_invalid_numeric_values(df, column)
+    for column, err in report["invalid_numeric_count"].items():
+        report["invalid_numeric_percentage"][column] = calculate_error_percentage(err, len(df))
     return report
 
-
+print(generate_quality_report(df, ["units_sold", "unit_price"], load_rules("../config/data_rules.json")))
