@@ -1,11 +1,12 @@
 import pandas as pd
+import numpy as np
 import json
 from .data_analyzer import check_duplicates
 from .data_cleaner import check_invalid_categories
 
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
 df_test = df.drop(columns=["region", "unit_price"])
-
+empty_df = pd.DataFrame()
 
 def check_required_columns(df, required_columns:list):
     missing = []
@@ -59,14 +60,44 @@ def load_rules(path):
         rules = json.load(f)
     return rules
 
+def calculate_quality_score(report):
+    if isinstance(report["missing_values_percentage"], (int, float, np.number)):
+        completeness =  100 - report["missing_values_percentage"]
+    elif report["missing_values_percentage"] is None:
+        completeness = None
+    else:
+        completeness = 0
+    if isinstance(report["duplicate_percentage"], (int, float, np.number)):
+        uniqueness = 100 - report["duplicate_percentage"]
+    elif report["duplicate_percentage"] is None:
+        uniqueness = None
+    else:
+        uniqueness = 0
+    value = list(report["invalid_numeric_percentage"].values())
+    num = 0
+    for val in value:
+        if val is None:
+            num = None
+            break
+    if num is not None:
+        if len(value) != 0:
+            num = sum(value) / len(value)
+        else:
+            num = 0
+    if num is not None:
+        validity = 100 - num
+    else:
+        validity = None
+    if completeness is not None and uniqueness is not None and validity is not None:
+        grade = (completeness + uniqueness + validity) / 3
+    else:
+        grade = None
+    return grade
+
 def generate_quality_report(df, columns:list, rules: dict):
     report = {
     "missing_columns": [],
     "incorrect_types": [],
-    "invalid_unit_price": 0,
-    "invalid_units_sold": 0,
-    "unit_price_error_percentage":0,
-    "units_sold_error_percentage":0,
     "missing_values_percentage":0,
     "duplicate_percentage":0,
     "missing_values_count":0,
@@ -74,18 +105,11 @@ def generate_quality_report(df, columns:list, rules: dict):
     "allowed_categories":{},
     "wrong_categories":{},
     "invalid_numeric_count": {},
-    "invalid_numeric_percentage": {}
+    "invalid_numeric_percentage": {},
+    "quality_score": 0
     }
     report["missing_columns"] = check_required_columns(df, rules["required_columns"])
     report["incorrect_types"] = check_column_type(df, rules["required_columns_type"])
-    if "unit_price" in df.columns:
-        report["invalid_unit_price"] = check_value_range(df, "unit_price", rules["value_ranges"]["unit_price"])
-    if "units_sold" in df.columns:
-        report["invalid_units_sold"] = check_value_range(df, "units_sold", rules["value_ranges"]["units_sold"])
-    if "unit_price" in df.columns:
-        report["unit_price_error_percentage"] = calculate_error_percentage(report["invalid_unit_price"], len(df))
-    if "units_sold" in df.columns:
-        report["units_sold_error_percentage"] = calculate_error_percentage(report["invalid_units_sold"], len(df))
     report["missing_values_percentage"] = calculate_error_percentage(df.isnull().sum().sum(), df.size)
     duplicate, pre_duplicate, _ = check_duplicates(df)
     report["duplicate_percentage"] = pre_duplicate
@@ -96,12 +120,19 @@ def generate_quality_report(df, columns:list, rules: dict):
             if column in rules["allowed_categories"]:
                 report["allowed_categories"][column] = rules["allowed_categories"][column]
                 report["wrong_categories"][column] = check_invalid_categories(df, column, rules["allowed_categories"][column])
-    for column, type in  rules["required_columns_type"].items():
-        if type == "numeric":
+    for column, expected_type in  rules["required_columns_type"].items():
+        if expected_type == "numeric":
             if column in df.columns:
                 report["invalid_numeric_count"][column] = count_invalid_numeric_values(df, column)
     for column, err in report["invalid_numeric_count"].items():
         report["invalid_numeric_percentage"][column] = calculate_error_percentage(err, len(df))
+    score = calculate_quality_score(report)
+    if score is None:
+        report["quality_score"] = None
+    elif score < 0:
+        report["quality_score"] = 0
+    elif score > 100:
+        report["quality_score"] = 100
+    else:
+        report["quality_score"] = score
     return report
-
-print(generate_quality_report(df, ["units_sold", "unit_price"], load_rules("../config/data_rules.json")))
