@@ -4,6 +4,7 @@ import json
 from .data_analyzer import check_duplicates
 from .data_cleaner import check_invalid_categories
 
+clean_df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\sample.csv")
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
 df_test = df.drop(columns=["region", "unit_price"])
 empty_df = pd.DataFrame()
@@ -60,7 +61,7 @@ def load_rules(path):
         rules = json.load(f)
     return rules
 
-def calculate_quality_score(report):
+def calculate_quality_score(report, df, rules):
     if isinstance(report["missing_values_percentage"], (int, float, np.number)):
         completeness =  100 - report["missing_values_percentage"]
     elif report["missing_values_percentage"] is None:
@@ -73,6 +74,22 @@ def calculate_quality_score(report):
         uniqueness = None
     else:
         uniqueness = 0
+    cat_val = 0
+    counter = 0
+    category_dict = calculate_category_validity(df, rules)
+    if not category_dict:
+        category_validity = None
+    else:
+        for val in category_dict.values():
+            if val is None:
+                category_validity = None
+                break
+            elif isinstance(val, (int, float, np.number)):
+                cat_val += val
+                counter += 1
+                category_validity = cat_val / counter
+            else:
+                category_validity = 0
     value = list(report["invalid_numeric_percentage"].values())
     num = 0
     for val in value:
@@ -88,11 +105,30 @@ def calculate_quality_score(report):
         validity = 100 - num
     else:
         validity = None
-    if completeness is not None and uniqueness is not None and validity is not None:
-        grade = (completeness + uniqueness + validity) / 3
+    if completeness is not None and uniqueness is not None and validity is not None and category_validity is not None:
+        grade = (completeness + uniqueness + validity + category_validity) / 4
     else:
         grade = None
     return grade
+
+def calculate_category_validity(df, rules):
+    not_allowed = {}
+    error = {}
+    category_validity = {}
+    for column in df.columns:
+        if column in rules["allowed_categories"]:
+            not_allowed[column] = (sum(~df[column].isin(rules["allowed_categories"][column])))
+    for key, val in not_allowed.items():
+        if len(df) == 0 :
+            error[key] = None
+        else:
+            error[key] = val /len(df) * 100
+    for key, val in error.items():
+        if val is None:
+            category_validity[key] = None
+        else:
+            category_validity[key] = 100 - val
+    return category_validity
 
 def generate_quality_report(df, columns:list, rules: dict):
     report = {
@@ -126,7 +162,7 @@ def generate_quality_report(df, columns:list, rules: dict):
                 report["invalid_numeric_count"][column] = count_invalid_numeric_values(df, column)
     for column, err in report["invalid_numeric_count"].items():
         report["invalid_numeric_percentage"][column] = calculate_error_percentage(err, len(df))
-    score = calculate_quality_score(report)
+    score = calculate_quality_score(report, df, rules)
     if score is None:
         report["quality_score"] = None
     elif score < 0:
@@ -136,3 +172,8 @@ def generate_quality_report(df, columns:list, rules: dict):
     else:
         report["quality_score"] = score
     return report
+
+
+print(generate_quality_report(df, ["region", "product"], load_rules("../config/data_rules.json")))
+print(generate_quality_report(clean_df, ["region", "product"], load_rules("../config/data_rules.json")))
+print(generate_quality_report(empty_df, ["region", "product"], load_rules("../config/data_rules.json")))
