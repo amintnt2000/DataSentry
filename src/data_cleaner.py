@@ -1,5 +1,7 @@
 import pandas as pd
+from src.data_validator import load_rules
 
+rules = load_rules("../config/data_rules.json")
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
 
 def remove_duplicates(df):
@@ -22,3 +24,14 @@ def handle_invalid_numeric(df):
 
 def check_invalid_categories(df, column, allowed_values):
     return df.loc[~df[column].isin(allowed_values), column].value_counts()
+
+def normalize_categories(df, rules):
+    df_copy = df.copy()
+    for key, val in rules["allowed_categories"].items():
+        if key in df_copy.columns:
+            for category in val:
+                if product.lower() == category.lower():
+                    product = category
+
+
+
