@@ -43,11 +43,16 @@ def count_invalid_numeric_values(df, column):
 def check_value_range(df, column, value_range):
     unexpected = 0
     for value in df[column]:
-        if isinstance(value, (int, float)):
-             if value < value_range["min"] :
+        if pd.isna(value):
+            continue
+        try:
+            numeric = pd.to_numeric(value)
+            if numeric < value_range["min"] :
                  unexpected += 1
-             if value > value_range["max"] :
+            if numeric > value_range["max"] :
                  unexpected += 1
+        except(ValueError, TypeError):
+            continue
     return unexpected
 
 def calculate_error_percentage(error_count, total_rows):
@@ -90,6 +95,20 @@ def calculate_quality_score(report, df, rules):
                 category_validity = cat_val / counter
             else:
                 category_validity = 0
+    sum_range = 0
+    counter = 0
+    for val in report["out_of_range_percentage"].values():
+        if val is not None:
+            sum_range += val
+            counter += 1
+    if counter != 0:
+        out_of_range = sum_range / counter
+    else:
+        out_of_range = None
+    if out_of_range is not None:
+        range_validity = 100 - out_of_range
+    else:
+        range_validity = None
     value = list(report["invalid_numeric_percentage"].values())
     num = 0
     for val in value:
@@ -105,8 +124,16 @@ def calculate_quality_score(report, df, rules):
         validity = 100 - num
     else:
         validity = None
-    if completeness is not None and uniqueness is not None and validity is not None and category_validity is not None:
-        grade = (completeness + uniqueness + validity + category_validity) / 4
+    metrics = [
+        completeness,
+        uniqueness,
+        validity,
+        category_validity,
+        range_validity
+    ]
+    valid_metrics = [value for value in metrics if value is not None]
+    if len(valid_metrics) != 0:
+        grade = (sum(valid_metrics)) / len(valid_metrics)
     else:
         grade = None
     return grade
@@ -132,18 +159,25 @@ def calculate_category_validity(df, rules):
 
 def generate_quality_report(df, columns:list, rules: dict):
     report = {
-    "missing_columns": [],
-    "incorrect_types": [],
-    "missing_values_percentage":0,
-    "duplicate_percentage":0,
-    "missing_values_count":0,
-    "duplicate_count":0,
-    "allowed_categories":{},
-    "wrong_categories":{},
-    "invalid_numeric_count": {},
-    "invalid_numeric_percentage": {},
-    "quality_score": 0
+        "out_of_range_percentage": {},
+        "out_of_range_count": {},
+        "missing_columns": [],
+        "incorrect_types": [],
+        "missing_values_percentage":0,
+        "duplicate_percentage":0,
+        "missing_values_count":0,
+        "duplicate_count":0,
+        "allowed_categories":{},
+        "wrong_categories":{},
+        "invalid_numeric_count": {},
+        "invalid_numeric_percentage": {},
+        "quality_score": 0
     }
+    for column, value_range in rules["value_ranges"].items():
+        if column in df.columns:
+            report["out_of_range_count"][column] = check_value_range(df, column, value_range)
+    for key, value in report["out_of_range_count"].items():
+        report["out_of_range_percentage"][key] = calculate_error_percentage(value, len(df))
     report["missing_columns"] = check_required_columns(df, rules["required_columns"])
     report["incorrect_types"] = check_column_type(df, rules["required_columns_type"])
     report["missing_values_percentage"] = calculate_error_percentage(df.isnull().sum().sum(), df.size)
@@ -173,7 +207,3 @@ def generate_quality_report(df, columns:list, rules: dict):
         report["quality_score"] = score
     return report
 
-
-print(generate_quality_report(df, ["region", "product"], load_rules("../config/data_rules.json")))
-print(generate_quality_report(clean_df, ["region", "product"], load_rules("../config/data_rules.json")))
-print(generate_quality_report(empty_df, ["region", "product"], load_rules("../config/data_rules.json")))

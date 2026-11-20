@@ -1,7 +1,5 @@
 import pandas as pd
-from src.data_validator import load_rules
 
-rules = load_rules("../config/data_rules.json")
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
 
 def remove_duplicates(df):
@@ -30,8 +28,11 @@ def normalize_categories(df, rules):
     for key, val in rules["allowed_categories"].items():
         if key in df_copy.columns:
             for category in val:
-                if product.lower() == category.lower():
-                    product = category
+                for index, product in df_copy[key].items():
+                    if isinstance(product, str):
+                        if product.lower() == category.lower():
+                            df_copy.at[index, key] = category
+    return df_copy
 
 
 

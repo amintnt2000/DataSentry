@@ -1,5 +1,3 @@
-import pandas as pd
-
 def check_missing_values(df):
     null = df.isnull().sum()
     rows = len(df)

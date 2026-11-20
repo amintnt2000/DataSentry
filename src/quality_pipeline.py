@@ -22,6 +22,10 @@ def run_quality_pipeline(path, columns:list, rules):
     df_copy = data_cleaner.handle_invalid_numeric(df_copy)
     cleaning_summary["after_invalid_numeric"] = len(df_copy)
     cleaning_summary["invalid_numeric"] = cleaning_summary["after_handle_missing_value"] - len(df_copy)
+    df_1 = df_copy.copy()
+    df_copy = data_cleaner.normalize_categories(df_copy, rules)
+    cleaning_summary["after_normalize_categories"] = len(df_copy)
+    cleaning_summary["categories_normalized"] = df_copy.ne(df_1).sum().sum()
     final_report = generate_quality_report(df_copy, columns, rules)
     return (df, initial_report, df_copy, final_report, cleaning_summary)
 
@@ -34,6 +38,7 @@ def generate_cleaning_summary(cleaning_summary):
             f"Rows Removed During Missing Value Handling: {cleaning_summary['handle_missing_value']}\n"
             f"Rows After Missing Value Handling: {cleaning_summary['after_handle_missing_value']}\n"
             f"Invalid Numeric Rows Removed: {cleaning_summary['invalid_numeric']}\n"
+            f"Categories Normalized: {cleaning_summary['categories_normalized']}\n"
             f"Final Rows: {cleaning_summary['after_invalid_numeric']}\n"
             f"Total Rows Removed: {cleaning_summary['original_rows'] - cleaning_summary['after_invalid_numeric']}")
 
@@ -57,7 +62,10 @@ def generate_quality_summary(report):
             f"Invalid Categories: {wrong_cat}\n"
             f"Invalid Numeric Values: {invalid_numeric}\n"
             f"Missing Columns: {len(report['missing_columns'])}\n"
-            f"Incorrect Column Types: {len(report['incorrect_types'])}\n")
+            f"Incorrect Column Types: {len(report['incorrect_types'])}\n"
+            f"Out of Range Values: \n"
+            f"unit_price: {report['out_of_range_count']['unit_price']}\n"
+            f"units_sold: {report['out_of_range_count']['units_sold']}\n")
 
 def generate_final_report(initial_report, final_report, cleaning_summary):
     initial_quality = generate_quality_summary(initial_report)
