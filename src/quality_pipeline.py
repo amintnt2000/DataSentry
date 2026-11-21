@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 from src.data_validator import generate_quality_report, load_rules
 from src import data_cleaner
 from src.data_loader import load_csv
@@ -54,6 +52,13 @@ def generate_quality_summary(report):
         score = f"{report['quality_score']:.2f}"
     else:
         score = "N/A"
+    out_range = ""
+    values = 0
+    for key , val in report['out_of_range_count'].items():
+        out_range += f"{key}: {val}\n"
+        values += val
+    if values == 0:
+        out_range = "No out-of-range values found"
     return ("DataSentry Quality Report\n"
             "-------------------------\n"
             f"Quality Score: {score}\n"
@@ -64,8 +69,8 @@ def generate_quality_summary(report):
             f"Missing Columns: {len(report['missing_columns'])}\n"
             f"Incorrect Column Types: {len(report['incorrect_types'])}\n"
             f"Out of Range Values: \n"
-            f"unit_price: {report['out_of_range_count']['unit_price']}\n"
-            f"units_sold: {report['out_of_range_count']['units_sold']}\n")
+            f"{out_range}\n"
+            f"")
 
 def generate_final_report(initial_report, final_report, cleaning_summary):
     initial_quality = generate_quality_summary(initial_report)

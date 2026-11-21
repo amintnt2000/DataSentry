@@ -30,8 +30,8 @@ def normalize_categories(df, rules):
             for category in val:
                 for index, product in df_copy[key].items():
                     if isinstance(product, str):
-                        if product.lower() == category.lower():
-                            df_copy.at[index, key] = category
+                        if product.lower().strip() == category.lower().strip():
+                            df_copy.at[index, key] = category.title().strip()
     return df_copy
 
 

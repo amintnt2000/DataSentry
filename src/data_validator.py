@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 import json
-from .data_analyzer import check_duplicates
-from .data_cleaner import check_invalid_categories
+from data_analyzer import check_duplicates
+from data_cleaner import check_invalid_categories
 
 clean_df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\sample.csv")
 df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
