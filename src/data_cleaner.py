@@ -1,7 +1,5 @@
 import pandas as pd
 
-df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
-
 def remove_duplicates(df):
     df_copy = df.copy()
     df_copy = df_copy.drop_duplicates()

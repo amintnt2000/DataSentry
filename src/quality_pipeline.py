@@ -1,3 +1,5 @@
+import pandas as pd
+
 from src.data_validator import generate_quality_report, load_rules
 from src import data_cleaner
 from src.data_loader import load_csv
@@ -36,9 +38,11 @@ def generate_cleaning_summary(cleaning_summary):
             f"Rows Removed During Missing Value Handling: {cleaning_summary['handle_missing_value']}\n"
             f"Rows After Missing Value Handling: {cleaning_summary['after_handle_missing_value']}\n"
             f"Invalid Numeric Rows Removed: {cleaning_summary['invalid_numeric']}\n"
-            f"Categories Normalized: {cleaning_summary['categories_normalized']}\n"
+            f"Rows After Invalid Numeric Handling: {cleaning_summary['after_invalid_numeric']}\n"
+            f"Category Cells Normalized: {cleaning_summary['categories_normalized']}\n"
             f"Final Rows: {cleaning_summary['after_invalid_numeric']}\n"
-            f"Total Rows Removed: {cleaning_summary['original_rows'] - cleaning_summary['after_invalid_numeric']}")
+            f"Total Rows Removed: {cleaning_summary['original_rows'] - cleaning_summary['after_invalid_numeric']}\n")
+
 
 def generate_quality_summary(report):
     wrong_cat = 0
@@ -47,7 +51,6 @@ def generate_quality_summary(report):
     invalid_numeric = 0
     for val in report['invalid_numeric_count'].values():
         invalid_numeric +=  val
-    score = 0
     if report['quality_score'] is not None:
         score = f"{report['quality_score']:.2f}"
     else:
@@ -59,6 +62,21 @@ def generate_quality_summary(report):
         values += val
     if values == 0:
         out_range = "No out-of-range values found"
+    category = {}
+    for key , val in report["wrong_categories"].items():
+        if not val.empty:
+            category[key] = val
+        else:
+            category[key] = "category is empty"
+    wrong_categories_text = ""
+    for key ,val in category.items():
+        if isinstance(val, pd.Series):
+            wrong_categories_text += f'{key}:\n'
+            for k, v  in val.items():
+                wrong_categories_text += f'   {k}:{v}\n'
+        else:
+            wrong_categories_text += f'{key}:\n'
+            wrong_categories_text += "    No invalid categories found\n"
     return ("DataSentry Quality Report\n"
             "-------------------------\n"
             f"Quality Score: {score}\n"
@@ -70,7 +88,8 @@ def generate_quality_summary(report):
             f"Incorrect Column Types: {len(report['incorrect_types'])}\n"
             f"Out of Range Values: \n"
             f"{out_range}\n"
-            f"")
+            f"Wrong Categories:\n"
+            f"{wrong_categories_text}\n")
 
 def generate_final_report(initial_report, final_report, cleaning_summary):
     initial_quality = generate_quality_summary(initial_report)
@@ -86,3 +105,4 @@ def generate_final_report(initial_report, final_report, cleaning_summary):
             "[FINAL DATA QUALITY]\n"
             f"{final_quality}\n\n"
             "================================")
+
