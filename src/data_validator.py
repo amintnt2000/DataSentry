@@ -1,13 +1,8 @@
 import pandas as pd
 import numpy as np
 import json
-from .data_analyzer import check_duplicates
-from .data_cleaner import check_invalid_categories
-
-clean_df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\sample.csv")
-df = pd.read_csv(r"C:\Users\Meta Pc\PycharmProjects\DataSentry\data\dirty_sample.csv")
-df_test = df.drop(columns=["region", "unit_price"])
-empty_df = pd.DataFrame()
+from src.data_analyzer import check_duplicates
+from src.data_cleaner import check_invalid_categories
 
 def check_required_columns(df, required_columns:list):
     missing = []

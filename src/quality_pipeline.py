@@ -1,10 +1,11 @@
 import pandas as pd
-
-from src.data_validator import generate_quality_report, load_rules
+from src.data_validator import generate_quality_report
 from src import data_cleaner
 from src.data_loader import load_csv
+from pathlib import Path
 
-rules = load_rules("../config/data_rules.json")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RULES_PATH = PROJECT_ROOT / "config" / "data_rules.json"
 
 def run_quality_pipeline(path, columns:list, rules):
     df = load_csv(path)
