@@ -15,16 +15,24 @@ def check_column_type(df, required_columns_type:dict):
     incorrect = []
     for column, expected_type in required_columns_type.items():
         if column in df.columns:
-            if expected_type == "numeric":
-                if pd.api.types.is_numeric_dtype(df[column]):
-                    pass
-                else:
-                    incorrect.append([column, expected_type])
-            elif expected_type == "string":
-                if not pd.api.types.is_numeric_dtype(df[column]):
-                    pass
-                else:
-                    incorrect.append([column, expected_type])
+            if df[column].empty:
+                if expected_type == "numeric":
+                    if pd.api.types.is_numeric_dtype(df[column]) is not True:
+                        incorrect.append([column, expected_type])
+                elif expected_type == "string":
+                    if pd.api.types.is_string_dtype(df[column]) is not True:
+                        incorrect.append([column, expected_type])
+            else:
+                if expected_type == "numeric":
+                    if pd.to_numeric(df[column], errors="coerce").notna().sum() > 0:
+                        pass
+                    else:
+                        incorrect.append([column, expected_type])
+                elif expected_type == "string":
+                    if df[column].apply(lambda val: isinstance(val, str)).sum() > 0:
+                        pass
+                    else:
+                        incorrect.append([column, expected_type])
     return incorrect
 
 def count_invalid_numeric_values(df, column):
@@ -68,12 +76,14 @@ def calculate_quality_score(report, df, rules):
         completeness = None
     else:
         completeness = 0
+
     if isinstance(report["duplicate_percentage"], (int, float, np.number)):
         uniqueness = 100 - report["duplicate_percentage"]
     elif report["duplicate_percentage"] is None:
         uniqueness = None
     else:
         uniqueness = 0
+
     cat_val = 0
     counter = 0
     category_dict = calculate_category_validity(df, rules)
@@ -90,6 +100,7 @@ def calculate_quality_score(report, df, rules):
                 category_validity = cat_val / counter
             else:
                 category_validity = 0
+
     sum_range = 0
     counter = 0
     for val in report["out_of_range_percentage"].values():
@@ -105,6 +116,7 @@ def calculate_quality_score(report, df, rules):
     else:
         range_validity = None
     value = list(report["invalid_numeric_percentage"].values())
+
     num = 0
     for val in value:
         if val is None:
@@ -119,13 +131,21 @@ def calculate_quality_score(report, df, rules):
         validity = 100 - num
     else:
         validity = None
+
+    if len(rules["required_columns"]) != 0:
+        schema_validity = 100 - (len(report["missing_columns"]) / len(rules["required_columns"])) * 100
+    else:
+        schema_validity = None
+
     metrics = [
         completeness,
         uniqueness,
         validity,
         category_validity,
-        range_validity
+        range_validity,
+        schema_validity
     ]
+
     valid_metrics = [value for value in metrics if value is not None]
     if len(valid_metrics) != 0:
         grade = (sum(valid_metrics)) / len(valid_metrics)

@@ -39,9 +39,18 @@ def test_check_column_type_incorrect_num():
     result = check_column_type(df, {"product":"string", "region":"string", "unit_price":"numeric"})
 
     assert isinstance(result, list)
-    assert result == [[ "unit_price", "numeric"]]
+    assert result == []
 
-def test_check_column_type_incorrect_str():
+def test_check_column_type_invalid_num():
+    df = pd.DataFrame({"product": ["Mouse", "Keyboard"],
+                       "region": ["London", "Paris"],
+                       "unit_price": ["unknown", "invalid"]})
+    result = check_column_type(df, {"product": "string", "region": "string", "unit_price": "numeric"})
+
+    assert isinstance(result, list)
+    assert result == [["unit_price", "numeric"]]
+
+def test_check_column_type_invalid_str():
     df = pd.DataFrame({"product":[1, 2],
                        "region":["London", "Paris"],
                        "unit_price":[100, 200]})
@@ -49,6 +58,15 @@ def test_check_column_type_incorrect_str():
 
     assert isinstance(result, list)
     assert result == [["product", "string"]]
+
+def test_check_column_type_mixed_str():
+    df = pd.DataFrame({"product": ["Laptop", 20],
+                       "region":["London", "Paris"],
+                       "unit_price":[100, 200]})
+    result = check_column_type(df, {"product":"string", "region":"string", "unit_price":"numeric"})
+
+    assert isinstance(result, list)
+    assert result == []
 
 def test_count_invalid_numeric_values():
     df = pd.DataFrame({"units_sold":[10, 20, "unknown", 30, "invalid"]})
@@ -294,10 +312,10 @@ def test_generate_quality_report_with_errors():
     assert result["invalid_numeric_count"]["units_sold"] == 0
     assert result["invalid_numeric_count"]["unit_price"] == 0
 
-    assert result["quality_score"] < 100
-
     assert result["out_of_range_percentage"]["unit_price"] == 25
     assert result["invalid_numeric_percentage"]["units_sold"] == 0
+
+    assert result["quality_score"] < 100
 
 def test_generate_quality_report_missing_columns():
     df = pd.DataFrame({
@@ -363,3 +381,60 @@ def test_generate_quality_report_invalid_numeric():
 
     assert result["wrong_categories"]["product"].empty
     assert result["wrong_categories"]["region"].empty
+
+def test_generate_quality_report_out_of_range():
+    df = pd.DataFrame({
+        "product": ["Laptop", "Mouse", "Keyboard", "Monitor"],
+        "units_sold": [10, 20, 1500, 40],
+        "unit_price": [100, 1200, 75, -10],
+        "region": ["Berlin", "Paris", "London", "Berlin"]
+    })
+    columns = ["product", "region"]
+    rules = load_rules(RULES_PATH)
+    result = generate_quality_report(df, columns, rules)
+
+    assert isinstance(result, dict)
+
+    assert result["invalid_numeric_count"]["units_sold"] == 0
+    assert result["invalid_numeric_count"]["unit_price"] == 0
+
+    assert result["out_of_range_count"]["units_sold"] == 1
+    assert result["out_of_range_count"]["unit_price"] == 2
+
+    assert result["out_of_range_percentage"]["units_sold"] == 25
+    assert result["out_of_range_percentage"]["unit_price"] == 50
+
+    assert result["quality_score"] < 100
+
+def test_generate_quality_report_combined_errors():
+    df = pd.DataFrame({
+        "product": ["Laptop", "Atlantis", "Mouse", "Keyboard"],
+        "units_sold": [10, "unknown", 1500, 20],
+        "unit_price": [100, 1200, 200, -10],
+        "region": ["Berlin", "Atlantis", "Paris", "London"]
+    })
+    columns = ["product", "region"]
+    rules = load_rules(RULES_PATH)
+    result = generate_quality_report(df, columns, rules)
+
+    assert isinstance(result, dict)
+
+    assert result["missing_columns"] == []
+    assert result["incorrect_types"] == []
+
+    assert result["invalid_numeric_count"]["units_sold"] == 1
+    assert result["invalid_numeric_count"]["unit_price"] == 0
+
+    assert result["invalid_numeric_percentage"]["units_sold"] == 25
+    assert result["invalid_numeric_percentage"]["unit_price"] == 0
+
+    assert result["out_of_range_count"]["units_sold"] == 1
+    assert result["out_of_range_count"]["unit_price"] == 2
+
+    assert result["out_of_range_percentage"]["units_sold"] == 25
+    assert result["out_of_range_percentage"]["unit_price"] == 50
+
+    assert result["wrong_categories"]["product"].sum() == 1
+    assert result["wrong_categories"]["region"].sum() == 1
+
+    assert result["quality_score"] < 100
